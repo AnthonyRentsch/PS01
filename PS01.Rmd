@@ -1,21 +1,53 @@
 ---
-title: "STAT/MATH 495: Problem Set 01"
-author: "WRITE YOUR NAME HERE"
+title: 'STAT/MATH 495: Problem Set 01'
+author: "Anthony Rentsch"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
   html_document:
-    toc: true
-    toc_float: true
+    collapsed: no
+    smooth_scroll: no
+    toc: yes
     toc_depth: 2
-    collapsed: false
-    smooth_scroll: false
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=4.5)
 
 # Load packages
-library(tidyverse)
+library(dplyr)
+library(randomForest)
 ```
 
+```{r}
+#read in data
+train <- read.csv("https://rudeboybert.github.io/STAT495/static/Titanic/train.csv")
+test <- read.csv("https://rudeboybert.github.io/STAT495/static/Titanic/test.csv")
+```
 
+```{r}
+#create random forest model to predict which passengers survive based on passenger class, age, and sex
+attach(train)
+survive <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age, na.action = na.omit, data = train)
+```
+
+```{r}
+#prepare prediction data frame for submission
+prediction <- cbind(Passengerid = test$PassengerId, Survived = predict(survive, test))
+prediction <- as.data.frame(prediction)
+
+#Somewhere in randomforest and predict operations, classes were swtiched from 0 and 1 to 1 and 2
+#This line of code switches that back
+prediction$Survived <- ifelse(prediction$Survived < 1.5, 0, 1)
+
+#for NA predictions, randomly assign survival status
+prediction$Survived <- ifelse(is.na(prediction$Survived), sample(c(0,1),size=1), prediction$Survived)
+```
+
+```{r}
+#write submission to .csv file
+write.csv(prediction, file = "submission.csv",row.names = F)
+```
